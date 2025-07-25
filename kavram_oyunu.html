@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kavram Oyunu</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      overflow: hidden;
+      background: linear-gradient(135deg, #d1eff5, #c6e1f2);
+    }
+
+    /* Başlangıç Ekranı */
+    #startScreen {
+      position: fixed;
+      z-index: 999;
+      background: linear-gradient(135deg, #fefcea, #f1daff);
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 1s ease;
+      overflow: hidden;
+    }
+
+    .introCard {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      text-align: center;
+      animation: popUp 0.5s ease;
+      max-width: 90%;
+      z-index: 10;
+      position: relative;
+    }
+
+    .introCard h1 {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .introCard p {
+      font-size: 18px;
+      margin: 6px 0;
+    }
+
+    .introCard .tip {
+      font-size: 16px;
+      font-style: italic;
+      color: #444;
+      margin: 12px 0;
+    }
+
+    #startBtn {
+      margin-top: 20px;
+      padding: 12px 28px;
+      font-size: 20px;
+      background: linear-gradient(45deg, #28a745, #3cc76a);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #startBtn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes popUp {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .floatingEmoji {
+      position: absolute;
+      font-size: 40px;
+      pointer-events: none;
+      animation: floatMove 4s ease-in-out infinite alternate;
+      opacity: 0.7;
+    }
+
+    @keyframes floatMove {
+      from { transform: translateY(0px) translateX(0px); }
+      to { transform: translateY(-20px) translateX(10px); }
+    }
+
+    /* Oyun Alanı */
+    #infoBar {
+      background: #6c5dd3;
+      color: #fff;
+      padding: 12px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+      display: none;
+    }
+
+    #gameArea {
+      position: relative;
+      width: 100vw;
+      height: calc(100vh - 50px);
+      overflow: hidden;
+      display: none;
+    }
+
+    .item {
+      position: absolute;
+      font-size: 60px;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.3s;
+    }
+
+    .item:hover {
+      transform: scale(1.2);
+    }
+
+    .floatText {
+      position: absolute;
+      font-size: 28px;
+      font-weight: bold;
+      opacity: 1;
+      animation: floatFade 1.2s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes floatFade {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-30px); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Başlangıç Ekranı -->
+<div id="startScreen">
+  <div class="introCard">
+    <h1>🧠 Kodlama Kavramları</h1>
+    <div style="font-size: 48px;">📦 🌳 🔁</div>
+    <p><strong>Değişken:</strong> Bilgiyi saklar.</p>
+    <p><strong>Koşul:</strong> Karar verir.</p>
+    <p><strong>Döngü:</strong> Tekrar eder.</p>
+    <p class="tip">Doğru emojilere tıkla, yanlışlardan kaçın!</p>
+    <button id="startBtn">🚀 Başla</button>
+  </div>
+</div>
+
+<!-- Oyun Bilgi Çubuğu -->
+<div id="infoBar">
+  <span id="currentConcept" style="font-size: xx-large;">Değişken</span>
+  <span style="font-size: xx-large;"> | Puan: </span>
+  <span id="score" style="font-size: xx-large;">0</span>
+</div>
+
+<!-- Oyun Alanı -->
+<div id="gameArea"></div>
+
+<!-- Ses Efektleri -->
+<audio id="correctSound" src="correct.wav"></audio>
+<audio id="wrongSound" src="wrong.mp3"></audio>
+
+<script>
+  const startScreen = document.getElementById("startScreen");
+  const startBtn = document.getElementById("startBtn");
+  const gameArea = document.getElementById("gameArea");
+  const scoreDisplay = document.getElementById("score");
+  const conceptDisplay = document.getElementById("currentConcept");
+  const infoBar = document.getElementById("infoBar");
+  const correctSound = document.getElementById("correctSound");
+  const wrongSound = document.getElementById("wrongSound");
+
+  const concepts = [
+    { name: "Değişken", emojis: ["📦", "👜", "🎒", "📁", "🧺"], key: "degisken" },
+    { name: "Koşul", emojis: ["🌳", "🪧", "🛣️", "🔀", "🚦"], key: "kosul" },
+    { name: "Döngü", emojis: ["🪥", "⏰", "🔁", "♻️", "🌀"], key: "dongu" }
+  ];
+
+  let currentConcept = concepts[0];
+  let score = 0;
+  let gameStarted = false;
+
+  function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min) + min);
+  }
+
+  function showFloatText(text, x, y, color) {
+    const floatText = document.createElement("div");
+    floatText.className = "floatText";
+    floatText.style.left = `${x}px`;
+    floatText.style.top = `${y}px`;
+    floatText.style.color = color;
+    floatText.textContent = text;
+    gameArea.appendChild(floatText);
+    setTimeout(() => floatText.remove(), 1200);
+  }
+
+  function spawnItem() {
+    if (!gameStarted) return;
+    const concept = concepts[getRandomInt(0, concepts.length)];
+    const emoji = concept.emojis[getRandomInt(0, concept.emojis.length)];
+    const item = document.createElement("div");
+    item.className = "item";
+    item.textContent = emoji;
+    item.dataset.kavram = concept.key;
+    const x = getRandomInt(0, window.innerWidth - 60);
+    const y = getRandomInt(0, window.innerHeight - 120);
+    item.style.left = `${x}px`;
+    item.style.top = `${y}px`;
+
+    item.onclick = (e) => {
+      if (concept.key === currentConcept.key) {
+        score++;
+        correctSound.currentTime = 0;
+        correctSound.play();
+        showFloatText("+1", e.pageX, e.pageY, "limegreen");
+      } else {
+        score--;
+        wrongSound.currentTime = 0;
+        wrongSound.play();
+        showFloatText("-1", e.pageX, e.pageY, "crimson");
+      }
+      scoreDisplay.textContent = score;
+      item.remove();
+    };
+
+    gameArea.appendChild(item);
+    let dx = Math.random() < 0.5 ? 1 : -1;
+    let dy = Math.random() < 0.5 ? 1 : -1;
+    const moveInterval = setInterval(() => {
+      const newX = item.offsetLeft + dx * getRandomInt(0, 2);
+      const newY = item.offsetTop + dy * getRandomInt(0, 2);
+      if (newX > 0 && newX < window.innerWidth - 60) item.style.left = `${newX}px`;
+      if (newY > 0 && newY < window.innerHeight - 100) item.style.top = `${newY}px`;
+    }, 100);
+    setTimeout(() => {
+      clearInterval(moveInterval);
+      item.remove();
+    }, 10000);
+  }
+
+  setInterval(() => spawnItem(), 1000);
+  setInterval(() => {
+    if (!gameStarted) return;
+    const randomIndex = getRandomInt(0, concepts.length);
+    currentConcept = concepts[randomIndex];
+    conceptDisplay.textContent = currentConcept.name;
+  }, 20000);
+
+  // Başla butonuna basıldığında
+  startBtn.onclick = () => {
+    startScreen.style.display = "none";
+    gameArea.style.display = "block";
+    infoBar.style.display = "block";
+    gameStarted = true;
+  };
+
+  // Başlangıçta sahnede rastgele kayan emojiler oluştur
+  window.onload = () => {
+    const emojis = concepts.flatMap(c => c.emojis);
+    for (let i = 0; i < emojis.length; i++) {
+      const e = document.createElement("div");
+      e.className = "floatingEmoji";
+      e.textContent = emojis[i];
+      e.style.left = `${getRandomInt(0, window.innerWidth - 50)}px`;
+      e.style.top = `${getRandomInt(0, window.innerHeight - 50)}px`;
+      startScreen.appendChild(e);
+    }
+  };
+</script>
+
+</body>
+</html>
